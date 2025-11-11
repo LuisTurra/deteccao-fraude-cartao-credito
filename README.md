@@ -6,12 +6,12 @@
 
 🔗 **Demo ao vivo**: https://detec-fraude-luis-turra.streamlit.app  
 🔗 **Repositório**: https://github.com/luisturra/credit-card-fraud-detection  
-🔗 **Notebook EDA**: notebooks/01_EDA_Analise_Exploratoria.ipynb
+🔗 **Notebook EDA**: notebooks/analise.ipynb
 
 ## Por que esse projeto?
 - Fraude é o maior medo de Nubank, PicPay, C6, Mercado Pago, Stone...  
-- Vagas júnior 2025 pedem **XGBoost + SMOTE + ROC-AUC + deploy**  
-- Tudo que o recrutador abre primeiro: dashboard bonito + código limpo + explicabilidade SHAP
+-  **XGBoost + SMOTE + ROC-AUC + deploy**  
+
 
 ## Funcionalidades
 - Teste de transação em tempo real  
