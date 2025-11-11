@@ -155,4 +155,4 @@ with tab2:
 with tab3:
     st.header("Análise Exploratória")
     st.markdown("Notebook completo:")
-    st.markdown("GitHub: [notebooks/01_EDA_Analise_Exploratoria.ipynb](https://github.com/luisturra/credit-card-fraud-detection/blob/main/notebooks/01_EDA_Analise_Exploratoria.ipynb)")
+    st.markdown("GitHub: [notebooks/analise.ipynb](https://github.com/luisturra/credit-card-fraud-detection/blob/main/notebooks/analise.ipynb)")
