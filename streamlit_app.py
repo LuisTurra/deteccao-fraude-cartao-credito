@@ -6,13 +6,41 @@ import numpy as np
 import shap
 import matplotlib.pyplot as plt
 from src.utils import get_feature_names
+import os
+from pathlib import Path
 
 st.set_page_config(page_title="Detecção de Fraude - Luis Turra", layout="wide")
 st.title("Detecção de Fraude em Cartão de Crédito")
-
+HF_REPO_ID = "luisturra/creditCardFraud" 
+HF_FILE_NAME = "creditcard.csv"
 @st.cache_data
 def load_data():
-    return pd.read_csv("data/creditcard.csv")
+    HF_URL = f"https://huggingface.co/datasets/{HF_REPO_ID}/resolve/main/{HF_FILE_NAME}"
+    
+    LOCAL_CACHE_PATH = HF_FILE_NAME
+    
+    df = pd.DataFrame()
+
+    if not os.path.exists(LOCAL_CACHE_PATH):
+        st.info(f"Baixando dataset (~150MB) do Hugging Face Hub. Isto levará alguns segundos...")
+        
+        try:
+            df = pd.read_csv(HF_URL, low_memory=False) 
+            df.to_csv(LOCAL_CACHE_PATH, index=False)
+            st.success("Dataset baixado e salvo no cache com sucesso!")
+
+        except Exception as e:
+            st.error(f"ERRO DE DOWNLOAD: Falha ao baixar o arquivo do Hugging Face. Detalhes: {e}")
+            return pd.DataFrame() 
+    
+    else:
+        st.success("Dataset carregado do cache local!")
+        df = pd.read_csv(LOCAL_CACHE_PATH)
+        
+        if 'Unnamed: 0' in df.columns:
+            df = df.drop('Unnamed: 0', axis=1)
+
+    return df
 
 df = load_data()
 model = joblib.load("models/xgb_fraud_model.pkl")
@@ -32,11 +60,11 @@ with tab1:
         st.subheader("Dados da Transação")
         valor = st.number_input("Valor da compra (R$)", min_value=0.01, max_value=30000.0, value=89.90, step=0.01, format="%.2f")
         
-        # SLIDER COM VALORES REAIS DOS V1-V28 (AO VIVO!)
+        
         tempo = st.slider("Horário da transação", 0, 172792, 95000, 
                          help="Segundos desde a primeira transação do dia")
         
-        # GERA VALORES REALISTAS DOS V1-V28 AO MUDAR O SLIDER
+        
         np.random.seed(int(tempo) % 100)
         realistic_features = []
         for col in X_columns:
@@ -48,7 +76,7 @@ with tab1:
             val = mean_val + noise * std_val
             realistic_features.append(val)
         
-        # MOSTRA OS VALORES DOS V1-V28 EM TEMPO REAL
+        
         st.markdown("**Características PCA geradas automaticamente:**")
         v_df = pd.DataFrame({
             'Variável': X_columns[:-2],
@@ -69,16 +97,16 @@ with tab1:
     if st.button("VERIFICAR FRAUDE AGORA", type="primary", use_container_width=True):
         st.markdown("<hr>", unsafe_allow_html=True)
 
-        # Escalonamento
+       
         features_scaled = features.copy()
         features_scaled[0, -2] = scaler.transform([[tempo]])[0][0]
         features_scaled[0, -1] = scaler.transform([[valor]])[0][0]
 
-        # Predição
+        
         prob = model.predict_proba(features_scaled)[0][1]
         pred = model.predict(features_scaled)[0]
 
-        # Resultado
+        
         col_res1, col_res2, col_res3 = st.columns([1, 2, 1])
         with col_res2:
             if pred == 1:
@@ -94,7 +122,7 @@ with tab1:
 
         st.markdown("---")
 
-        # EXPLICAÇÃO DO SHAP COM BOTÃO i
+        
         col_shap1, col_shap2 = st.columns([1, 10])
         with col_shap1:
             st.markdown("**i**")
@@ -135,7 +163,7 @@ with tab1:
         shap_vals = np.array(shap_values[0], dtype=float).ravel()
         formatted_features = [f"{x:.2f}" for x in features_scaled[0]]
 
-        # Gráfico estático
+        
         import matplotlib.pyplot as plt
         import matplotlib
         matplotlib.use('Agg')
@@ -156,7 +184,7 @@ with tab1:
         plt.clf()
         plt.close('all')
 
-        # TABELA COM BOTÃO i EXPLICANDO CADA COLUNA
+       
         col_tab1, col_tab2 = st.columns([1, 10])
         with col_tab1:
             st.markdown("**i**")
@@ -187,7 +215,7 @@ with tab1:
         top = impact_df.iloc[0]
         st.markdown(f"**Resumo:** **{top['Variável']}** = {top['Valor']} → **{top['Direção'].lower()}** o risco (impacto {top['Impacto SHAP']:+.4f}).")
 
-        # Ação + relatório
+       
         st.subheader("Ação Recomendada")
         if pred == 1:
             st.error("Bloquear + 3D Secure")

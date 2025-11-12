@@ -1,0 +1,8 @@
+# Dados brutos (muito grandes)
+creditcard.csv
+data/
+*.csv
+
+# Modelos salvos (opcional)
+*.pkl
+*.joblib
