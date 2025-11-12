@@ -7,5 +7,4 @@ streamlit==1.38.0
 plotly==5.24.0
 shap==0.46.0
 joblib==1.4.2
-llvmlite==0.42.0  
-numba==0.59.1     
+  
