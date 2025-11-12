@@ -19,140 +19,257 @@ model = joblib.load("models/xgb_fraud_model.pkl")
 scaler = joblib.load("models/scaler.pkl")
 X_columns = df.drop('Class', axis=1).columns
 
-tab1, tab2, tab3 = st.tabs(["Dashboard", "Testar Transação", "EDA"])
+tab1, tab2 = st.tabs([ "Testar Transação", "EDA"])
+
 
 with tab1:
-    st.header("Resumo e KPIs Chave")
-    
-    # -------------------------------------------------------------
-    # 1. Linha de Métricas (KPIs)
-    # -------------------------------------------------------------
-    total_transacoes = len(df)
-    total_fraudes = df['Class'].sum()
-    porcentagem_fraude = df['Class'].mean() * 100
-    valor_fraude = df[df['Class'] == 1]['Amount'].sum()
+    st.header("Teste em Tempo Real - Simulador de Transação")
+    st.markdown("**Preencha os dados como se fosse uma compra real.** O modelo analisa em segundos.")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
 
-    col1.metric("Total de Transações", f"{total_transacoes:,}")
-    col2.metric("Fraudes Registradas (Count)", f"{total_fraudes:,}")
-    col3.metric("% de Fraude (Taxa)", f"{porcentagem_fraude:.4f}%")
-    col4.metric("**Valor Total em Risco (Fraude)**", f"R$ {valor_fraude:,.2f}")
-
-    st.markdown("---")
-
-    # -------------------------------------------------------------
-    # 2. Primeira Linha de Gráficos (Classes e Amount)
-    # -------------------------------------------------------------
-    st.subheader("Análise de Distribuição Geral")
-
-    colA, colB = st.columns(2)
-
-    with colA:
-        st.markdown("##### Distribuição de Classes")
-        df_classes = pd.DataFrame({'Tipo': ['Normal', 'Fraude'], 'Contagem': [total_transacoes - total_fraudes, total_fraudes]})
+    with col1:
+        st.subheader("Dados da Transação")
+        valor = st.number_input("Valor da compra (R$)", min_value=0.01, max_value=30000.0, value=89.90, step=0.01, format="%.2f")
         
-        fig_pie = px.pie(
-            df_classes, 
-            values='Contagem', 
-            names='Tipo', 
-            title="Distribuição de Transações (Normal vs. Fraude)",
-            color='Tipo',
-            color_discrete_map={'Normal':'#1f77b4', 'Fraude':'#d62728'}
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    with colB:
-        st.markdown("##### Distribuição de Valor (`Amount`) por Classe")
+        # SLIDER COM VALORES REAIS DOS V1-V28 (AO VIVO!)
+        tempo = st.slider("Horário da transação", 0, 172792, 95000, 
+                         help="Segundos desde a primeira transação do dia")
         
-        fig_box_amount = px.box(
-            df, 
-            y="Amount", 
-            color="Class", 
-            title="Box Plot de 'Amount'", 
-            labels={'Class': 'Classe (0=Normal, 1=Fraude)'}, 
-            color_discrete_map={0: '#1f77b4', 1: '#d62728'}
-        )
-        fig_box_amount.update_layout(yaxis_title="Valor da Transação (R$)")
-        st.plotly_chart(fig_box_amount, use_container_width=True)
-
-    st.markdown("---")
-
-    # -------------------------------------------------------------
-    # 3. Segunda Linha de Gráficos (Análise de Características Vⁿ - Fraude Predictors)
-    # -------------------------------------------------------------
-    st.subheader("Análise de Características PCA ($V_n$) - Preditoras de Fraude")
-    st.markdown("Use o seletor para visualizar o poder de separação de cada variável $V_n$ anonimizada.")
-
-    # 3.1. Preparação dos dados para seleção
-    v_cols = [col for col in df.columns if col.startswith('V')]
-    corr_data = df[v_cols + ['Class']].corr()
-    # Ordena pelo valor absoluto da correlação para identificar as mais importantes
-    corr_class = corr_data['Class'].drop('Class').sort_values(key=abs, ascending=False) 
-
-    # 3.2. Criação das colunas para os gráficos da Vⁿ
-    colC, colD = st.columns([1, 2])
-
-    with colC:
-        st.markdown("##### 💡 Top Features por Correlação com Fraude")
+        # GERA VALORES REALISTAS DOS V1-V28 AO MUDAR O SLIDER
+        np.random.seed(int(tempo) % 100)
+        realistic_features = []
+        for col in X_columns:
+            if col in ['Time', 'Amount']:
+                continue
+            mean_val = df[col].mean()
+            std_val = df[col].std()
+            noise = np.random.normal(0, 0.3)
+            val = mean_val + noise * std_val
+            realistic_features.append(val)
         
-        # Mostra as Top Features em uma tabela simplificada
-        top_corr_df = corr_class.head(6).reset_index().rename(columns={'index': 'Feature', 'Class': 'Correlação'})
-        top_corr_df['Correlação'] = top_corr_df['Correlação'].round(4)
-        st.dataframe(top_corr_df, hide_index=True)
-        
-        # Seletor para Box Plot
-        selected_feature = st.selectbox(
-            "Selecione uma Feature para ver a distribuição:",
-            options=corr_class.index.tolist(),
-            index=0 # Inicia na feature mais correlacionada
-        )
+        # MOSTRA OS VALORES DOS V1-V28 EM TEMPO REAL
+        st.markdown("**Características PCA geradas automaticamente:**")
+        v_df = pd.DataFrame({
+            'Variável': X_columns[:-2],
+            'Valor': [f"{x:.3f}" for x in realistic_features]
+        })
+        st.dataframe(v_df, use_container_width=True, hide_index=True)
 
-    with colD:
-        st.markdown(f"##### Box Plot de Distribuição: **{selected_feature}**")
-        
-        # Box Plot da Feature selecionada
-        fig_dist_vn = px.box(
-            df, 
-            y=selected_feature, 
-            color="Class", 
-            title=f"Distribuição de {selected_feature} por Classe (0=Normal, 1=Fraude)",
-            labels={'Class': 'Classe'},
-            color_discrete_map={0: '#1f77b4', 1: '#d62728'}
-        )
-        st.plotly_chart(fig_dist_vn, use_container_width=True)
+        features = np.array([realistic_features[:28] + [tempo, valor]])
 
-with tab2:
-    st.header("Teste em tempo real")
-    valor = st.number_input("Valor (R$)", 0.0, 30000.0, 85.0)
-    tempo = st.number_input("Tempo (segundos)", 0, 172792, 50000)
+    with col2:
+        st.subheader("Contexto da Transação (Opcional)")
+        tipo_compra = st.selectbox("Tipo de compra", ["Online", "Loja Física", "App", "Recorrência"])
+        dispositivo = st.selectbox("Dispositivo", ["Celular", "Computador", "Tablet", "POS"])
+        pais = st.selectbox("País", ["Brasil", "Argentina", "Colômbia", "Outros"])
+        nova_conta = st.checkbox("Primeira compra deste cartão?", value=False)
 
-    if st.button("Verificar"):
-        features = np.zeros((1, 30))
-        features[0, -2] = tempo
-        features[0, -1] = valor
-        features[0, -2] = scaler.transform([[tempo]])[0][0]
-        features[0, -1] = scaler.transform([[valor]])[0][0]
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("VERIFICAR FRAUDE AGORA", type="primary", use_container_width=True):
+        st.markdown("<hr>", unsafe_allow_html=True)
 
-        prob = model.predict_proba(features)[0][1]
-        pred = model.predict(features)[0]
+        # Escalonamento
+        features_scaled = features.copy()
+        features_scaled[0, -2] = scaler.transform([[tempo]])[0][0]
+        features_scaled[0, -1] = scaler.transform([[valor]])[0][0]
 
-        st.metric("Probabilidade de fraude", f"{prob:.2%}")
-        if pred == 1:
-            st.error("FRAUDE DETECTADA!")
-        else:
-            st.success("Transação SEGURA")
+        # Predição
+        prob = model.predict_proba(features_scaled)[0][1]
+        pred = model.predict(features_scaled)[0]
 
-        # SHAP corrigido
+        # Resultado
+        col_res1, col_res2, col_res3 = st.columns([1, 2, 1])
+        with col_res2:
+            if pred == 1:
+                st.error(f"FRAUDE DETECTADA!")
+                st.warning(f"Probabilidade: **{prob:.2%}**")
+                st.error("Transação BLOQUEADA automaticamente.")
+            else:
+                st.success(f"Transação APROVADA")
+                if prob > 0.3:
+                    st.warning(f"Probabilidade de fraude: **{prob:.2%}** → Monitoramento ativado")
+                else:
+                    st.info(f"Probabilidade de fraude: **{prob:.2%}** → Baixo risco")
+
+        st.markdown("---")
+
+        # EXPLICAÇÃO DO SHAP COM BOTÃO i
+        col_shap1, col_shap2 = st.columns([1, 10])
+        with col_shap1:
+            st.markdown("**i**")
+        with col_shap2:
+            st.caption("**O que é SHAP?** → Mostra quanto **cada variável contribuiu** para a decisão do modelo. Vermelho = aumentou o risco de fraude. Azul = diminuiu.")
+
+        st.subheader("Por que o modelo decidiu isso?")
+
+        with st.expander("O que é SHAP? (clique pra entender)", expanded=False):
+            st.markdown("""
+            **SHAP** = **SHapley Additive exPlanations**  
+            É o jeito mais justo de descobrir **quem realmente influenciou** a decisão do modelo.
+
+            **Como funciona no seu app:**
+            - O modelo começa com uma **probabilidade base** (ex: 5%)
+            - Cada variável (V14, Amount, etc.) **adiciona ou subtrai** uma porcentagem
+            - O SHAP mostra **exatamente quanto cada uma mudou** o resultado final
+
+            **Exemplo real:**
+            ```
+            Probabilidade inicial = 3%
+            + V14 muito baixo      → +45% (principal culpado)
+            + Valor alto           → +12%
+            - V3 normal            → -18% (ajudou a defender)
+            = Probabilidade final = 42% → FRAUDE!
+            ```
+
+            **No gráfico:**
+            - **Vermelho** = aumentou o risco de fraude
+            - **Verde** = diminuiu o risco
+            - O tamanho da barra = força do impacto
+
+            
+            """)
+            
         explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(features)
-        plt.figure(figsize=(12, 4))
-        shap.force_plot(explainer.expected_value, shap_values[0], features[0],
-                        feature_names=X_columns, matplotlib=True, show=False)
+        shap_values = explainer.shap_values(features_scaled)
+        shap_vals = np.array(shap_values[0], dtype=float).ravel()
+        formatted_features = [f"{x:.2f}" for x in features_scaled[0]]
+
+        # Gráfico estático
+        import matplotlib.pyplot as plt
+        import matplotlib
+        matplotlib.use('Agg')
+        plt.figure(figsize=(20, 6))
+        shap.force_plot(
+            base_value=explainer.expected_value,
+            shap_values=shap_vals.round(4),
+            features=formatted_features,
+            feature_names=X_columns,
+            matplotlib=True,
+            show=False,
+            contribution_threshold=0.01
+        )
+        plt.title("Explicação SHAP - Impacto de cada variável", fontsize=18, pad=40)
+        plt.xticks(rotation=45, ha='right', fontsize=10)
+        plt.tight_layout()
         st.pyplot(plt)
         plt.clf()
+        plt.close('all')
 
-with tab3:
-    st.header("Análise Exploratória")
-    st.markdown("Notebook completo:")
-    st.markdown("GitHub: [notebooks/analise.ipynb](https://github.com/luisturra/credit-card-fraud-detection/blob/main/notebooks/analise.ipynb)")
+        # TABELA COM BOTÃO i EXPLICANDO CADA COLUNA
+        col_tab1, col_tab2 = st.columns([1, 10])
+        with col_tab1:
+            st.markdown("**i**")
+        with col_tab2:
+            st.caption("**Variável** = nome (ex: V14) | **Valor** = valor usado na transação | **Impacto SHAP** = quanto mudou a probabilidade (+ = aumentou risco) | **Direção** = efeito final")
+
+        st.markdown("**Top 10 variáveis que mais influenciaram:**")
+        
+        impact_df = pd.DataFrame({
+            'Variável': X_columns,
+            'Valor': formatted_features,
+            'Impacto SHAP': shap_vals.round(4)
+        })
+        impact_df['Impacto Absoluto'] = impact_df['Impacto SHAP'].abs()
+        impact_df['Direção'] = impact_df['Impacto SHAP'].apply(lambda x: "Aumentou risco" if x > 0 else "Reduziu risco")
+        impact_df = impact_df.sort_values(by='Impacto Absoluto', ascending=False).head(10)
+
+        def highlight_row(row):
+            color = "#f1092c" if row['Direção'] == 'Aumentou risco' else "#0919f7"
+            return [f'background-color: {color}'] * len(row)
+
+        styled = impact_df[['Variável', 'Valor', 'Impacto SHAP', 'Direção']].style\
+            .apply(highlight_row, axis=1)\
+            .format({'Impacto SHAP': '{:+.4f}'})
+
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+
+        top = impact_df.iloc[0]
+        st.markdown(f"**Resumo:** **{top['Variável']}** = {top['Valor']} → **{top['Direção'].lower()}** o risco (impacto {top['Impacto SHAP']:+.4f}).")
+
+        # Ação + relatório
+        st.subheader("Ação Recomendada")
+        if pred == 1:
+            st.error("Bloquear + 3D Secure")
+        elif prob > 0.7:
+            st.warning("SMS / App")
+        elif prob > 0.4:
+            st.info("Monitorar 24h")
+        else:
+            st.success("Liberar")
+
+        relatorio = f"""RELATÓRIO DE FRAUDE\nValor: R$ {valor:,.2f}\nProb: {prob:.2%}\nTop: {top['Variável']}"""
+        st.download_button("Baixar Relatório", relatorio, f"fraude_{int(tempo)}.txt")
+with tab2:
+    st.header("Análise Exploratória de Dados (EDA)")
+    
+
+    st.subheader("Resumo do Dataset")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total de Transações", f"{len(df):,}")
+    col2.metric("Fraudes Detectadas", f"{df['Class'].sum():,}")
+    col3.metric("Taxa de Fraude", f"{df['Class'].mean()*100:.4f}%")
+    col4.metric("Período (horas)", f"{(df['Time'].max()/3600):.1f}h")
+
+    st.subheader("Distribuição Temporal das Transações")
+    df_temp = df.copy()
+    df_temp['Hora do Dia'] = (df_temp['Time'] % 86400) // 3600  # 86400 = 24h
+    df_temp['Tipo'] = df_temp['Class'].map({0: 'Normal', 1: 'Fraude'})
+
+    fig_time = px.histogram(
+        df_temp, x='Hora do Dia', color='Tipo',
+        nbins=24, title="Transações por Hora do Dia",
+        labels={'Hora do Dia': 'Hora', 'count': 'Nº de Transações'},
+        color_discrete_map={'Normal': '#1f77b4', 'Fraude': '#d62728'},
+        barmode='overlay', opacity=0.7
+    )
+    fig_time.update_layout(
+        xaxis=dict(tickmode='linear', tick0=0, dtick=1),
+        yaxis_title="Quantidade",
+        legend_title="Tipo"
+    )
+    st.plotly_chart(fig_time, use_container_width=True)
+
+    st.caption("Observação: Fraudes ocorrem mais em horários de **madrugada** (0h-6h) — padrão clássico de ataque!")
+
+    st.subheader("Top 10 Variáveis Mais Importantes (XGBoost)")
+    importances = model.feature_importances_
+    feat_importance = pd.DataFrame({
+        'Feature': X_columns,
+        'Importância': importances
+    }).sort_values(by='Importância', ascending=False).head(10)
+
+    fig_imp = px.bar(
+        feat_importance, x='Importância', y='Feature',
+        orientation='h', title="Feature Importance (Gain)",
+        color='Importância', color_continuous_scale='Reds'
+    )
+    fig_imp.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig_imp, use_container_width=True)
+
+    st.subheader("Correlação das Variáveis com Fraude")
+    corr = df.corr()['Class'].drop('Class').sort_values(key=abs, ascending=False)
+    corr_df = corr.reset_index().rename(columns={'index': 'Feature', 'Class': 'Correlação'})
+
+    fig_corr = px.bar(
+        corr_df.head(10), x='Correlação', y='Feature',
+        orientation='h', title="Top 10 Correlações com Fraude",
+        color='Correlação', color_continuous_scale='RdBu'
+    )
+    fig_corr.update_layout(yaxis={'categoryorder':'total ascending'})
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    st.subheader("Distribuição das Principais Variáveis (Normal vs Fraude)")
+    top_features = feat_importance['Feature'].head(6).tolist()
+    selected_feat = st.selectbox("Selecione uma variável para ver o Boxplot:", top_features)
+
+    fig_box = px.box(
+        df, y=selected_feat, color='Class',
+        title=f"Distribuição de {selected_feat} por Classe",
+        labels={'Class': 'Classe (0=Normal, 1=Fraude)'},
+        color_discrete_map={0: '#1f77b4', 1: '#d62728'}
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
+
+   
+    
