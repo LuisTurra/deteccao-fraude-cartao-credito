@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import requests
 from io import StringIO
-import kagglehub
+
 from pathlib import Path
 import gdown
 
