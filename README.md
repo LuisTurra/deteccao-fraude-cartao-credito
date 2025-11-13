@@ -4,8 +4,8 @@
 **Dashboard interativo (Streamlit + Plotly)**  
 
 
-🔗 **Demo ao vivo**: https://detec-fraude-luis-turra.streamlit.app  
-🔗 **Repositório**: https://github.com/luisturra/credit-card-fraud-detection  
+🔗 **Demo ao vivo**: https://luisturra-deteccao-fraude-cartao-credito-streamlit-app-99a0gz.streamlit.app/  
+🔗 **Repositório**: https://github.com/LuisTurra/deteccao-fraude-cartao-credito  
 🔗 **Notebook EDA**: notebooks/analise.ipynb
 
 ## Por que esse projeto?
