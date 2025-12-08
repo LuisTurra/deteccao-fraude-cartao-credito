@@ -15,7 +15,7 @@
 
 ## Funcionalidades
 - Teste de transação em tempo real  
-- Dashboard interativo (sem Power BI pago)  
+- Dashboard interativo
 - Explicabilidade com SHAP  
 - Análise exploratória completa
 
